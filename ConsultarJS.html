@@ -4,7 +4,7 @@
  * SISTEMA DE TELEFONES TJES
  * Arquivo: ConsultarJS.html
  * ==========================================================
- * Funções de inicialização do dashboard e da consulta pública.
+ * Inicialização do dashboard e da consulta pública.
  */
 
 function carregarTelefones() {
@@ -13,74 +13,83 @@ function carregarTelefones() {
   }
 }
 
+/*
+ * O dashboard é calculado a partir da mesma fonte usada pela consulta.
+ * Assim ele não depende de um formato específico do retorno de
+ * carregarDashboard() e não fica preso nos valores iniciais 0.
+ */
 function carregarDashboard() {
-  if (typeof API === "undefined" || typeof API.dashboard !== "function") {
-    console.error("API.dashboard não está disponível.");
+  if (typeof API === "undefined" || typeof API.listarTelefones !== "function") {
+    console.error("API.listarTelefones não está disponível.");
     return;
   }
 
-  API.dashboard(function (resposta) {
+  API.listarTelefones(function (resposta) {
     if (!resposta || resposta.sucesso !== true) {
-      console.error("Falha ao carregar dashboard:", resposta);
+      console.error("Falha ao carregar dados do dashboard:", resposta);
       return;
     }
 
-    const dados = resposta.dados || {};
+    const telefones = Array.isArray(resposta.dados) ? resposta.dados : [];
+    const setores = new Set();
+    const tipos = new Set();
+    const porTipo = {};
+    const porComarca = {};
 
-    const totalTelefones = obterNumeroDashboard(dados, [
-      "totalTelefones", "total_telefones", "totalContatos", "total_contatos", "quantidadeTelefones"
-    ]);
-    const totalSetores = obterNumeroDashboard(dados, [
-      "totalSetores", "total_setores", "quantidadeSetores"
-    ]);
-    const totalTipos = obterNumeroDashboard(dados, [
-      "totalTipos", "total_tipos", "tiposCadastrados", "quantidadeTipos"
-    ]);
+    telefones.forEach(item => {
+      const comarca = String(obterCampoDashboard(item, ["comarca", "COMARCA", "Comarca"]) || "Sem comarca").trim();
+      const setor = String(obterCampoDashboard(item, ["setor", "SETOR", "Setor"]) || "Sem setor").trim();
+      const tipo = String(obterCampoDashboard(item, ["tipo", "TIPO", "Tipo"]) || "Não informado").trim();
 
-    atualizarTexto("total-telefones", totalTelefones);
-    atualizarTexto("total-setores", totalSetores);
-    atualizarTexto("total-tipos", totalTipos);
+      setores.add(comarca + "||" + setor);
+      tipos.add(tipo);
+      porTipo[tipo] = (porTipo[tipo] || 0) + 1;
+      porComarca[comarca] = (porComarca[comarca] || 0) + 1;
+    });
+
+    atualizarTexto("total-telefones", telefones.length);
+    atualizarTexto("total-setores", setores.size);
+    atualizarTexto("total-tipos", tipos.size);
 
     renderizarResumoDashboard(
       document.getElementById("grafico-tipos"),
-      obterColecaoDashboard(dados, ["porTipo", "por_tipo", "tipos", "contatosPorTipo"]),
-      "Nenhum dado por tipo disponível."
+      porTipo,
+      "Nenhum contato cadastrado."
     );
 
     renderizarResumoDashboard(
       document.getElementById("grafico-comarcas"),
-      obterColecaoDashboard(dados, ["porComarca", "por_comarca", "comarcas", "contatosPorComarca"]),
-      "Nenhum dado por comarca disponível."
+      porComarca,
+      "Nenhum contato cadastrado."
     );
   }, function (erro) {
     console.error("Erro ao carregar dashboard:", erro);
   });
 }
 
-function obterNumeroDashboard(dados, nomes) {
-  for (const nome of nomes) {
-    if (Object.prototype.hasOwnProperty.call(dados, nome)) {
-      const numero = Number(dados[nome]);
-      if (Number.isFinite(numero)) return numero;
-    }
-  }
-  return 0;
-}
+function obterCampoDashboard(item, nomes) {
+  if (!item) return "";
+  const chaves = Object.keys(item);
 
-function obterColecaoDashboard(dados, nomes) {
   for (const nome of nomes) {
-    if (Object.prototype.hasOwnProperty.call(dados, nome)) {
-      const valor = dados[nome];
-      if (Array.isArray(valor)) return valor;
-      if (valor && typeof valor === "object") {
-        return Object.keys(valor).map(chave => ({
-          nome: chave,
-          valor: valor[chave]
-        }));
-      }
-    }
+    if (Object.prototype.hasOwnProperty.call(item, nome)) return item[nome];
+
+    const normalizado = String(nome)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9]/g, "")
+      .toUpperCase();
+
+    const encontrado = chaves.find(chave => String(chave)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9]/g, "")
+      .toUpperCase() === normalizado);
+
+    if (encontrado !== undefined) return item[encontrado];
   }
-  return [];
+
+  return "";
 }
 
 function atualizarTexto(id, valor) {
@@ -92,24 +101,16 @@ function renderizarResumoDashboard(container, dados, mensagemVazia) {
   if (!container) return;
   container.innerHTML = "";
 
-  if (!dados || !dados.length) {
+  const entradas = Object.keys(dados || {})
+    .map(nome => ({ nome, valor: Number(dados[nome]) || 0 }))
+    .sort((a, b) => b.valor - a.valor || a.nome.localeCompare(b.nome, "pt-BR"));
+
+  if (!entradas.length) {
     container.innerHTML = '<p style="color:#94a3b8; margin:0;">' + mensagemVazia + '</p>';
     return;
   }
 
-  dados.slice(0, 15).forEach(item => {
-    let nome = "";
-    let valor = 0;
-
-    if (item && typeof item === "object" && !Array.isArray(item)) {
-      nome = item.nome ?? item.NOME ?? item.tipo ?? item.TIPO ?? item.comarca ?? item.COMARCA ?? item.label ?? item.name ?? "";
-      valor = Number(item.valor ?? item.VALOR ?? item.quantidade ?? item.QUANTIDADE ?? item.total ?? item.TOTAL ?? 0);
-    } else {
-      nome = String(item);
-    }
-
-    if (!Number.isFinite(valor)) valor = 0;
-
+  entradas.slice(0, 15).forEach(item => {
     const linha = document.createElement("div");
     linha.style.display = "flex";
     linha.style.justifyContent = "space-between";
@@ -119,11 +120,11 @@ function renderizarResumoDashboard(container, dados, mensagemVazia) {
     linha.style.borderBottom = "1px solid #e2e8f0";
 
     const rotulo = document.createElement("span");
-    rotulo.textContent = String(nome || "-");
+    rotulo.textContent = item.nome;
     rotulo.style.color = "#334155";
 
     const numero = document.createElement("strong");
-    numero.textContent = String(valor);
+    numero.textContent = String(item.valor);
     numero.style.color = "#0f172a";
 
     linha.appendChild(rotulo);
