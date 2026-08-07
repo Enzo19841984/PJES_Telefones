@@ -9,7 +9,7 @@ Arquivo: ConsultarTelefones.html
   <div class="page-header">
     <div>
       <h2>Telefones</h2>
-      <p>Selecione uma comarca e um setor para ver os contatos</p>
+      <p>Selecione uma microrregião e depois uma comarca e um setor para ver os contatos</p>
     </div>
     <button class="btn btn-secondary" onclick="window.print()">🖨️ Imprimir / PDF</button>
   </div>
@@ -17,39 +17,38 @@ Arquivo: ConsultarTelefones.html
   <div class="search-panel">
     <div class="search-box">
       <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#94a3b8;">🔍</span>
-      <input id="campo-pesquisa-consulta" type="search" placeholder="Filtrar setores..." oninput="filtrarSetoresConsulta()">
+      <input id="campo-pesquisa-consulta" type="search" placeholder="Filtrar comarcas ou setores..." oninput="filtrarSetoresConsulta()">
+    </div>
+
+    <div style="margin-top:12px;">
+      <label for="filtro-microrregiao-consulta" style="display:block; margin-bottom:6px; font-size:13px; font-weight:600; color:#334155;">
+        Microrregião
+      </label>
+      <select id="filtro-microrregiao-consulta" onchange="selecionarMicrorregiaoConsulta(this.value)" style="width:100%; padding:11px 12px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; color:#0f172a; font-size:14px;">
+        <option value="">Selecione uma microrregião</option>
+      </select>
     </div>
   </div>
 
-  <div class="consulta-layout" style="display:flex; gap:20px; flex-wrap:wrap; align-items:stretch;">
-    <div class="consulta-lista" id="consulta-lista" style="flex:1; min-width:250px; max-width:350px; overflow-y:auto; max-height:70vh;">
-      <!-- preenchido dinamicamente -->
+  <div class="consulta-layout" style="display:flex; gap:16px; flex-wrap:nowrap; align-items:stretch;">
+    <div class="consulta-lista" id="consulta-lista" style="flex:0 0 320px; min-width:260px; max-width:320px; overflow-y:auto; max-height:calc(100vh - 285px);">
+      <div class="panel" style="padding:18px; text-align:center; color:#64748b;">
+        Selecione uma microrregião para visualizar as comarcas.
+      </div>
     </div>
 
-    <div class="consulta-detalhes" id="consulta-detalhes" style="flex:2; min-width:300px;">
-      <div class="panel" style="min-height:560px; display:flex; flex-direction:column;">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:12px;">
+    <div class="consulta-detalhes" id="consulta-detalhes" style="flex:1; min-width:0; height:calc(100vh - 285px); max-height:calc(100vh - 285px);">
+      <div class="panel" style="height:100%; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; padding:18px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:10px; flex:0 0 auto;">
           <div>
             <h3 style="margin:0 0 5px;">Mapa do Espírito Santo</h3>
-            <p style="margin:0; color:#64748b; font-size:13px;">Selecione uma comarca e um setor na lista para ver os detalhes.</p>
+            <p style="margin:0; color:#64748b; font-size:13px;">Selecione uma microrregião e uma comarca na lista para navegar pelos setores.</p>
           </div>
-          <a
-            href="https://www.educacaonamao.com.br/wp-content/uploads/2019/11/mapa-districao-regioes-espirito-santo-596x1024.jpg"
-            target="_blank"
-            rel="noopener noreferrer"
-            style="flex:0 0 auto; color:#2563eb; font-size:13px; font-weight:600; text-decoration:none;"
-          >
-            Abrir mapa
-          </a>
+          <a href="https://www.educacaonamao.com.br/wp-content/uploads/2019/11/mapa-districao-regioes-espirito-santo-596x1024.jpg" target="_blank" rel="noopener noreferrer" style="flex:0 0 auto; color:#2563eb; font-size:13px; font-weight:600; text-decoration:none;">Abrir mapa</a>
         </div>
 
-        <div style="flex:1; min-height:480px; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:10px; background:#f8fafc;">
-          <img
-            src="https://www.educacaonamao.com.br/wp-content/uploads/2019/11/mapa-districao-regioes-espirito-santo-596x1024.jpg"
-            alt="Mapa das regiões e comarcas do Espírito Santo"
-            style="display:block; width:100%; height:100%; min-height:480px; object-fit:contain;"
-            onerror="this.style.display='none'; document.getElementById('consulta-mapa-erro').style.display='block';"
-          >
+        <div style="flex:1; min-height:0; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:10px; background:#f8fafc;">
+          <img src="https://www.educacaonamao.com.br/wp-content/uploads/2019/11/mapa-districao-regioes-espirito-santo-596x1024.jpg" alt="Mapa das regiões e comarcas do Espírito Santo" style="display:block; width:100%; height:100%; object-fit:contain; object-position:center;" onerror="this.style.display='none'; document.getElementById('consulta-mapa-erro').style.display='block';">
           <div id="consulta-mapa-erro" style="display:none; padding:30px; text-align:center; color:#64748b;">
             <p><strong>Não foi possível carregar o mapa.</strong></p>
             <p>Use o botão “Abrir mapa” para visualizar a imagem em uma nova aba.</p>
@@ -59,5 +58,3 @@ Arquivo: ConsultarTelefones.html
     </div>
   </div>
 </div>
-
-// Repository indexing update
