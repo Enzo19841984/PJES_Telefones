@@ -31,10 +31,6 @@ Arquivo: Layout.html
       <?!= include("Dashboard"); ?>
     </section>
 
-    <!-- <section id="telefones-view" class="view hidden">
-      <?!= include("Telefones"); ?>
-    </section> -->
-
     <section id="consulta-telefones-view" class="view hidden">
       <?!= include("ConsultarTelefones"); ?>
     </section>
@@ -43,23 +39,15 @@ Arquivo: Layout.html
       <div id="registro-alteracoes-container"></div>
     </section>
 
-    <section
-      id="solicitacoes-view"
-      class="view hidden"
-    >
+    <section id="solicitacoes-view" class="view hidden">
       <?!= include("Solicitacoes"); ?>
     </section>
 
-    <section
-      id="configuracoes-view"
-      class="view hidden"
-    >
+    <section id="configuracoes-view" class="view hidden">
       <div class="page-header">
         <div>
           <h2>Configurações</h2>
-          <p>
-            Informações e parâmetros gerais do sistema
-          </p>
+          <p>Informações e parâmetros gerais do sistema</p>
         </div>
       </div>
 
@@ -69,35 +57,15 @@ Arquivo: Layout.html
           do Poder Judiciário do Estado do Espírito Santo
         </h3>
 
-        <hr
-          style="
-            border: 0;
-            border-top: 1px solid #e5e7eb;
-            margin: 15px 0;
-          "
-        >
+        <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 15px 0;">
 
-        <p>
-          <strong>Versão:</strong>
-          <?= sistemaVersao ?>
-        </p>
-
-        <p>
-          <strong>Ambiente:</strong>
-          Google Apps Script Web App
-        </p>
-
-        <p>
-          <strong>Status da Base de Dados:</strong>
-          Conectado
-        </p>
+        <p><strong>Versão:</strong> <?= sistemaVersao ?></p>
+        <p><strong>Ambiente:</strong> Google Apps Script Web App</p>
+        <p><strong>Status da Base de Dados:</strong> Conectado</p>
       </div>
     </section>
 
-    <section
-      id="historico-view"
-      class="view hidden"
-    >
+    <section id="historico-view" class="view hidden">
       <div id="historico-container"></div>
     </section>
   </main>
@@ -105,5 +73,3 @@ Arquivo: Layout.html
 
 <?!= include("ModalTelefone"); ?>
 <?!= include("ModalAcesso"); ?>
-
-// Repository indexing update
