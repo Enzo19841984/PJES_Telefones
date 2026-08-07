@@ -230,6 +230,8 @@ class TelefoneRepository {
           return dataValida(valorObjeto(objeto, "DATA_ATUALIZACAO", "atualizadoEm", "updated_at", "updatedAt"), new Date());
         default: return valorObjeto(objeto, header) || "";
       }
+
+// Repository indexing update
     });
   }
 }
