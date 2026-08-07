@@ -98,5 +98,7 @@ class LogService {
   }
 }
 
+
+// Repository indexing update
 const LOG =
   new LogService();
