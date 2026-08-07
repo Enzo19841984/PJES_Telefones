@@ -1,10 +1,10 @@
 <script>
 /**
- * ==========================================================
- * SISTEMA DE TELEFONES TJES
- * Arquivo: DashboardJS.html
- * ==========================================================
+ * SISTEMA DE TELEFONES TJES - consulta pública
+ * Consulta agrupada por comarca/microrregião.
  */
+
+const URL_MAPA_ESPIRITO_SANTO = "https://drive.google.com/uc?export=view&id=1vDH3BCV4hURwHxImjvRa3nrhMJ7KdGpR";
 
 let todosTelefones = [];
 let setoresPorComarca = {};
@@ -12,22 +12,30 @@ let telefonesPorSetor = {};
 let microrregioesConsulta = {};
 let microrregiaoConsultaAtual = "";
 
+function normalizarChaveConsulta(valor) {
+  return String(valor == null ? "" : valor)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .toUpperCase();
+}
+
 function escaparConsulta(valor) {
   return String(valor == null ? "" : valor)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
+    .replace(/\"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
 
 function valorConsulta(obj, ...nomes) {
-  if (!obj) return "";
+  if (!obj || typeof obj !== "object") return "";
   const chaves = Object.keys(obj);
   for (const nome of nomes) {
     if (Object.prototype.hasOwnProperty.call(obj, nome)) return obj[nome];
-    const alvo = String(nome).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
-    const chave = chaves.find(k => String(k).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]/g, "").toUpperCase() === alvo);
+    const alvo = normalizarChaveConsulta(nome);
+    const chave = chaves.find(k => normalizarChaveConsulta(k) === alvo);
     if (chave !== undefined) return obj[chave];
   }
   return "";
@@ -53,14 +61,18 @@ function iniciarConsultaTelefones() {
       processarDados();
       preencherMicrorregioesConsulta();
       renderizarComarcas();
+      mostrarMapaConsulta();
     } else {
-      const lista = document.getElementById("consulta-lista");
-      if (lista) lista.innerHTML = '<div class="consulta-error-state">Erro ao carregar os telefones.</div>';
+      mostrarErroConsulta("Erro ao carregar os telefones.");
     }
   }, function() {
-    const lista = document.getElementById("consulta-lista");
-    if (lista) lista.innerHTML = '<div class="consulta-error-state">Falha na comunicação com a base de dados.</div>';
+    mostrarErroConsulta("Falha na comunicação com a base de dados.");
   });
+}
+
+function mostrarErroConsulta(mensagem) {
+  const lista = document.getElementById("consulta-lista");
+  if (lista) lista.innerHTML = '<div class="consulta-error-state">' + escaparConsulta(mensagem) + '</div>';
 }
 
 function processarDados() {
@@ -71,12 +83,12 @@ function processarDados() {
   todosTelefones.forEach(tel => {
     const comarca = String(valorConsulta(tel, "comarca", "Comarca") || "Sem comarca").trim();
     const setor = String(valorConsulta(tel, "setor", "Setor") || "Sem setor").trim();
-    const micro = String(valorConsulta(tel, "microrregiao", "Microrregiao", "microrregião") || "Sem microrregião").trim();
-    const chaveComarca = comarca;
+    const micro = String(valorConsulta(tel, "microrregiao", "Microrregiao", "microrregião", "Microregiao") || "Sem microrregião").trim();
     const chaveSetor = comarca + "||" + setor;
 
-    if (!setoresPorComarca[chaveComarca]) setoresPorComarca[chaveComarca] = new Set();
-    setoresPorComarca[chaveComarca].add(setor);
+    if (!setoresPorComarca[comarca]) setoresPorComarca[comarca] = new Set();
+    setoresPorComarca[comarca].add(setor);
+
     if (!telefonesPorSetor[chaveSetor]) telefonesPorSetor[chaveSetor] = [];
     telefonesPorSetor[chaveSetor].push(tel);
 
@@ -84,18 +96,22 @@ function processarDados() {
     microrregioesConsulta[micro].add(comarca);
   });
 
-  Object.keys(setoresPorComarca).forEach(c => {
-    setoresPorComarca[c] = Array.from(setoresPorComarca[c]).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  Object.keys(setoresPorComarca).forEach(comarca => {
+    setoresPorComarca[comarca] = Array.from(setoresPorComarca[comarca]).sort((a, b) => a.localeCompare(b, "pt-BR"));
   });
 }
 
 function preencherMicrorregioesConsulta() {
   const select = document.getElementById("filtro-microrregiao-consulta");
   if (!select) return;
-  select.innerHTML = '<option value="">Selecione uma microrregião</option>';
+
+  select.innerHTML = "";
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Selecione uma microrregião";
+  select.appendChild(placeholder);
 
   Object.keys(microrregioesConsulta)
-    .filter(m => normalizarConsulta(m) !== "sem microrregiao")
     .sort((a, b) => a.localeCompare(b, "pt-BR"))
     .forEach(micro => {
       const option = document.createElement("option");
@@ -129,7 +145,8 @@ function renderizarComarcas() {
     return;
   }
 
-  const termo = normalizarConsulta((document.getElementById("campo-pesquisa-consulta") || {}).value);
+  const campo = document.getElementById("campo-pesquisa-consulta");
+  const termo = normalizarConsulta(campo ? campo.value : "");
   const comarcas = obterComarcasMicrorregiao().filter(c => !termo || normalizarConsulta(c).includes(termo));
 
   if (!comarcas.length) {
@@ -142,12 +159,22 @@ function renderizarComarcas() {
     const item = document.createElement("button");
     item.type = "button";
     item.className = "comarca-item";
-    item.innerHTML = '<span class="comarca-nome">' + escaparConsulta(comarca) + '</span><span class="setor-count">' + setoresPorComarca[comarca].length + ' setores</span>';
+
+    const nome = document.createElement("span");
+    nome.className = "comarca-nome";
+    nome.textContent = comarca;
+
+    const quantidade = document.createElement("span");
+    quantidade.className = "setor-count";
+    quantidade.textContent = String((setoresPorComarca[comarca] || []).length) + " setores";
+
+    item.appendChild(nome);
+    item.appendChild(quantidade);
     item.addEventListener("click", () => selecionarComarcaConsulta(comarca));
     fragment.appendChild(item);
   });
-  container.innerHTML = "";
-  container.appendChild(fragment);
+
+  container.replaceChildren(fragment);
 }
 
 function filtrarComarcasConsulta() {
@@ -160,9 +187,11 @@ function filtrarSetoresConsulta() {
 
 function selecionarComarcaConsulta(comarca) {
   document.querySelectorAll(".comarca-item").forEach(el => el.classList.remove("active"));
-  const item = Array.from(document.querySelectorAll(".comarca-item")).find(el => normalizarConsulta(el.textContent).startsWith(normalizarConsulta(comarca)));
-  if (item) item.classList.add("active");
-
+  const alvo = normalizarConsulta(comarca);
+  Array.from(document.querySelectorAll(".comarca-item")).forEach(el => {
+    const nome = el.querySelector(".comarca-nome");
+    if (nome && normalizarConsulta(nome.textContent) === alvo) el.classList.add("active");
+  });
   renderizarSetoresDaComarca(comarca);
 }
 
@@ -182,8 +211,7 @@ function renderizarSetoresDaComarca(comarca) {
 
   setores.forEach(setor => {
     const chave = comarca + "||" + setor;
-    const contatos = telefonesPorSetor[chave] || [];
-    html += renderizarTabelaSetor(comarca, setor, contatos);
+    html += renderizarTabelaSetor(setor, telefonesPorSetor[chave] || []);
   });
 
   html += '</div>';
@@ -191,18 +219,23 @@ function renderizarSetoresDaComarca(comarca) {
 }
 
 function formatarWhatsappConsulta(valor) {
-  const digits = String(valor == null ? "" : valor).replace(/\D/g, "");
-  let local = digits;
-  if (local.startsWith("55")) local = local.substring(2);
-  if (local.length === 11) return "(" + local.substring(0, 2) + ") " + local.substring(2, 7) + "-" + local.substring(7);
-  if (local.length === 10) return "(" + local.substring(0, 2) + ") " + local.substring(2, 6) + "-" + local.substring(6);
+  let digits = String(valor == null ? "" : valor).replace(/\D/g, "");
+  if (digits.startsWith("55") && digits.length === 13) digits = digits.substring(2);
+  if (digits.length === 11) return "(" + digits.substring(0, 2) + ") " + digits.substring(2, 7) + "-" + digits.substring(7);
+  if (digits.length === 10) return "(" + digits.substring(0, 2) + ") " + digits.substring(2, 6) + "-" + digits.substring(6);
   return String(valor || "-");
 }
 
+function numeroWhatsappConsulta(valor) {
+  let digits = String(valor == null ? "" : valor).replace(/\D/g, "");
+  if (digits.length === 10 || digits.length === 11) digits = "55" + digits;
+  if (digits.length !== 12 && digits.length !== 13) return "";
+  return digits;
+}
+
 function linkWhatsappConsulta(valor) {
-  const digits = String(valor == null ? "" : valor).replace(/\D/g, "");
-  if (!digits) return "-";
-  const numero = digits.startsWith("55") ? digits : "55" + digits;
+  const numero = numeroWhatsappConsulta(valor);
+  if (!numero) return escaparConsulta(formatarWhatsappConsulta(valor));
   return '<a class="consulta-whatsapp-link" href="https://wa.me/' + numero + '" target="_blank" rel="noopener noreferrer" title="Abrir no WhatsApp">💬 ' + escaparConsulta(formatarWhatsappConsulta(valor)) + '</a>';
 }
 
@@ -215,26 +248,52 @@ function juntarValores(contatos, ...campos) {
   return valores;
 }
 
-function renderizarTabelaSetor(comarca, setor, contatos) {
-  const telefones = juntarValores(contatos, "telefone", "numero", "Telefone", "Numero");
-  const ramais = juntarValores(contatos, "ramal", "Ramal");
-  const whatsapps = juntarValores(contatos, "whatsapp", "Whatsapp", "WhatsApp", "WHATSAPP");
-  const emails = juntarValores(contatos, "email", "e-mail", "E-mail", "EMAIL");
-  const enderecos = juntarValores(contatos, "endereco", "Endereco", "ENDERECO");
+function renderizarTabelaSetor(setor, contatos) {
+  // Mantém o relacionamento entre os campos do mesmo registro.
+  // Não usa arrays independentes por coluna, evitando misturar telefone de A com WhatsApp de B.
+  const registros = contatos.map((contato, indice) => ({
+    indice,
+    telefone: String(valorConsulta(contato, "telefone", "numero", "Telefone", "Numero") || "").trim(),
+    ramal: String(valorConsulta(contato, "ramal", "Ramal") || "").trim(),
+    whatsapp: String(valorConsulta(contato, "whatsapp", "Whatsapp", "WhatsApp", "WHATSAPP") || "").trim(),
+    email: String(valorConsulta(contato, "email", "e-mail", "E-mail", "EMAIL") || "").trim(),
+    endereco: String(valorConsulta(contato, "endereco", "Endereco", "ENDERECO") || "").trim()
+  }));
 
-  const linhas = Math.max(telefones.length, ramais.length, whatsapps.length, emails.length, 1);
-  let html = '<section class="consulta-setor-card"><div class="consulta-setor-title"><h4>' + escaparConsulta(setor) + '</h4></div><div class="consulta-table-wrap"><table class="data-table consulta-contatos-table"><thead><tr><th>Telefone</th><th>Ramal</th><th>WhatsApp</th><th>E-mail</th></tr></thead><tbody>';
-  for (let i = 0; i < linhas; i++) {
-    const tel = telefones[i] || "-";
-    const ramal = ramais[i] || "-";
-    const whatsapp = whatsapps[i] || "";
-    const email = emails[i] || "-";
-    html += '<tr><td>' + escaparConsulta(tel) + '</td><td>' + escaparConsulta(ramal) + '</td><td>' + (whatsapp ? linkWhatsappConsulta(whatsapp) : '-') + '</td><td>' + escaparConsulta(email) + '</td></tr>';
-  }
+  // Remove duplicidades exatas sem perder registros que tenham tipos diferentes.
+  const unicos = registros.filter((registro, indice, array) => {
+    return array.findIndex(outro =>
+      outro.telefone === registro.telefone &&
+      outro.ramal === registro.ramal &&
+      outro.whatsapp === registro.whatsapp &&
+      outro.email === registro.email &&
+      outro.endereco === registro.endereco
+    ) === indice;
+  });
+
+  const linhas = unicos.length ? unicos : [{ telefone: "", ramal: "", whatsapp: "", email: "", endereco: "" }];
+  let html = '<section class="consulta-setor-card"><div class="consulta-setor-title"><h4>' + escaparConsulta(setor) + '</h4></div><div class="consulta-table-wrap"><table class="data-table consulta-contatos-table"><thead><tr><th>Telefone</th><th>Ramal</th><th>WhatsApp</th><th>E-mail</th></tr></thead><tbody>';
+
+  linhas.forEach(registro => {
+    html += '<tr>' +
+      '<td>' + escaparConsulta(registro.telefone || "-") + '</td>' +
+      '<td>' + escaparConsulta(registro.ramal || "-") + '</td>' +
+      '<td>' + (registro.whatsapp ? linkWhatsappConsulta(registro.whatsapp) : '-') + '</td>' +
+      '<td>' + escaparConsulta(registro.email || "-") + '</td>' +
+      '</tr>';
+  });
+
   html += '</tbody></table></div>';
+
+  const enderecos = [];
+  unicos.forEach(registro => {
+    if (registro.endereco && !enderecos.some(e => normalizarConsulta(e) === normalizarConsulta(registro.endereco))) enderecos.push(registro.endereco);
+  });
+
   if (enderecos.length) {
     html += '<div class="consulta-endereco"><strong>Endereço:</strong> ' + escaparConsulta(enderecos.join(" • ")) + '</div>';
   }
+
   html += '</section>';
   return html;
 }
@@ -242,10 +301,21 @@ function renderizarTabelaSetor(comarca, setor, contatos) {
 function mostrarMapaConsulta() {
   const container = document.getElementById("consulta-detalhes");
   if (!container) return;
-  container.innerHTML = '<div id="consulta-mapa-container" class="consulta-mapa-container"><img class="consulta-mapa-imagem" src="mapa-espirito-santo.png" alt="Mapa do Espírito Santo com microrregiões e comarcas" onerror="this.style.display=\'none\'; this.nextElementSibling.style.display=\'flex\';"><div class="consulta-mapa-placeholder"><div class="consulta-map-icon">🗺️</div><strong>Mapa do Espírito Santo</strong><span>Adicione o arquivo <code>mapa-espirito-santo.png</code> ao projeto para exibir o mapa.</span></div></div>';
-}
-// Mantém a consulta disponível quando a view for aberta.
-document.addEventListener("DOMContentLoaded", function() {
+
+  container.innerHTML =
+    '<div id="consulta-mapa-container" class="consulta-mapa-container" aria-label="Mapa do Espírito Santo">' +
+      '<img class="consulta-mapa-imagem" src="' + URL_MAPA_ESPIRITO_SANTO + '" alt="Mapa do Espírito Santo com microrregiões e comarcas" onerror="this.style.display=\'none\'; this.nextElementSibling.style.display=\'flex\';">' +
+      '<div class="consulta-mapa-placeholder">' +
+        '<div class="consulta-map-icon">🗺️</div>' +
+        '<strong>Não foi possível carregar o mapa</strong>' +
+        '<span>Verifique se o arquivo do Google Drive está compartilhado como “qualquer pessoa com o link”.</span>' +
+      '</div>' +
+    '</div>';
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", iniciarConsultaTelefones, { once: true });
+} else {
   iniciarConsultaTelefones();
-});
+}
 </script>
