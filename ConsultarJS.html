@@ -190,26 +190,27 @@ function aplicarOrdemTabelaTelefones() {
 
 /*
  * DashboardJS é carregado depois deste arquivo e recebe os dados da API
- * de forma assíncrona. Por isso esperamos os dados chegarem e só então
- * aplicamos a ordem da aba TELEFONES, sem alterar a ordem dos registros
- * de contatos dentro de cada setor.
+ * de forma assíncrona. Esperamos o DOM e os demais scripts estarem
+ * carregados antes de consultar a variável global lexical todosTelefones.
  */
-(function aguardarOrdemTabelaTelefones(tentativa) {
-  const numeroTentativa = Number(tentativa || 0);
-  const aplicar = aplicarOrdemTabelaTelefones();
+document.addEventListener("DOMContentLoaded", function () {
+  (function aguardarOrdemTabelaTelefones(tentativa) {
+    const numeroTentativa = Number(tentativa || 0);
+    const aplicar = aplicarOrdemTabelaTelefones();
 
-  if (aplicar) {
-    if (typeof microrregiaoSelecionada !== "undefined" && microrregiaoSelecionada &&
-        typeof renderizarComarcas === "function") {
-      renderizarComarcas();
+    if (aplicar) {
+      if (typeof microrregiaoSelecionada !== "undefined" && microrregiaoSelecionada &&
+          typeof renderizarComarcas === "function") {
+        renderizarComarcas();
+      }
+      return;
     }
-    return;
-  }
 
-  if (numeroTentativa < 30) {
-    setTimeout(function () {
-      aguardarOrdemTabelaTelefones(numeroTentativa + 1);
-    }, 150);
-  }
-})(0);
+    if (numeroTentativa < 30) {
+      setTimeout(function () {
+        aguardarOrdemTabelaTelefones(numeroTentativa + 1);
+      }, 150);
+    }
+  })(0);
+});
 </script>
