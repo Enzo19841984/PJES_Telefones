@@ -1,0 +1,45 @@
+<style>
+.consulta-telefones-page { max-width: 1500px; margin: 0 auto; }
+.consulta-page-header { margin-bottom: 16px; }
+.consulta-toolbar { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 18px; padding: 16px; }
+.consulta-filtro-microrregiao { flex: 0 0 320px; }
+.consulta-filtro-microrregiao label { display:block; margin-bottom:6px; font-size:12px; font-weight:700; color:#475569; }
+.consulta-filtro-microrregiao select { width:100%; min-height:42px; padding:10px 12px; border:1px solid #cbd5e1; border-radius:9px; background:#fff; color:#1e293b; font-size:14px; }
+.consulta-layout-mapa { display:grid; grid-template-columns:minmax(280px, 350px) minmax(0, 1fr); gap:18px; min-height:560px; }
+.painel-consulta-lista, .painel-consulta-mapa { min-width:0; background:#fff; border:1px solid #e2e8f0; border-radius:14px; box-shadow:0 4px 14px rgba(15,23,42,.06); }
+.painel-consulta-lista { padding:10px; overflow:auto; max-height:calc(100vh - 255px); }
+.comarca-item { width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 13px; margin-bottom:7px; border:1px solid #e2e8f0; border-radius:10px; background:#f8fafc; color:#1e293b; text-align:left; cursor:pointer; transition:.15s ease; }
+.comarca-item:hover, .comarca-item.active { border-color:#94a3b8; background:#eef2ff; transform:translateY(-1px); }
+.comarca-nome { font-weight:700; }
+.setor-count { flex:0 0 auto; padding:4px 8px; border-radius:999px; background:#e2e8f0; color:#475569; font-size:11px; font-weight:700; }
+.consulta-empty-state, .consulta-error-state { min-height:220px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:28px; text-align:center; color:#64748b; }
+.consulta-empty-state strong { color:#334155; font-size:16px; }
+.consulta-empty-state span { max-width:360px; font-size:13px; }
+.consulta-empty-icon, .consulta-map-icon { font-size:40px; margin-bottom:4px; }
+.consulta-mapa-container { height:100%; min-height:560px; padding:18px; display:flex; align-items:center; justify-content:center; }
+.consulta-mapa-imagem { display:block; width:100%; height:100%; max-height:650px; object-fit:contain; border-radius:10px; }
+.consulta-mapa-placeholder { width:100%; min-height:420px; display:none; flex-direction:column; align-items:center; justify-content:center; gap:9px; padding:30px; border:2px dashed #cbd5e1; border-radius:12px; background:#f8fafc; color:#64748b; text-align:center; }
+.consulta-mapa-placeholder strong { color:#334155; font-size:18px; }
+.consulta-mapa-placeholder small { max-width:420px; line-height:1.5; }
+.consulta-mapa-placeholder code { padding:2px 5px; border-radius:4px; background:#e2e8f0; }
+.consulta-detalhes-card { width:100%; }
+.consulta-detalhes-header { display:flex; justify-content:space-between; align-items:center; gap:15px; padding:2px 2px 16px; border-bottom:1px solid #e2e8f0; margin-bottom:16px; }
+.consulta-breadcrumb { color:#64748b; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+.consulta-detalhes-header h3 { margin:4px 0 2px; color:#0f172a; font-size:22px; }
+.consulta-detalhes-header p { margin:0; color:#64748b; font-size:13px; }
+.consulta-setor-card { margin-bottom:22px; padding:0; overflow:hidden; border:1px solid #e2e8f0; border-radius:12px; background:#fff; box-shadow:0 2px 8px rgba(15,23,42,.04); }
+.consulta-setor-title { padding:12px 15px; background:#f8fafc; border-bottom:1px solid #e2e8f0; }
+.consulta-setor-title h4 { margin:0; color:#1e293b; font-size:15px; }
+.consulta-table-wrap { overflow-x:auto; }
+.consulta-contatos-table { min-width:680px; }
+.consulta-contatos-table th { background:#eef2f7; color:#334155; }
+.consulta-contatos-table td { white-space:normal; }
+.consulta-whatsapp-link { color:#15803d !important; font-weight:700; text-decoration:none !important; white-space:nowrap; }
+.consulta-whatsapp-link:hover { text-decoration:underline !important; }
+.consulta-endereco { margin:16px 16px 18px; padding:13px 15px; border:1px solid #e2e8f0; border-radius:9px; background:#f8fafc; color:#475569; line-height:1.5; }
+.consulta-endereco strong { color:#334155; margin-right:5px; }
+.btn-voltar-mapa { flex:0 0 auto; }
+@media (max-width: 1000px) { .consulta-layout-mapa { grid-template-columns:1fr; } .painel-consulta-lista { max-height:360px; } .consulta-mapa-container { min-height:400px; } }
+@media (max-width: 700px) { .consulta-toolbar { flex-direction:column; align-items:stretch; } .consulta-filtro-microrregiao { flex-basis:auto; } .consulta-detalhes-header { align-items:flex-start; flex-direction:column; } }
+@media print { .consulta-toolbar, .consulta-page-header button, .btn-voltar-mapa { display:none !important; } .consulta-layout-mapa { display:block; } .painel-consulta-lista, .consulta-mapa-container { display:none !important; } .consulta-detalhes { display:block !important; border:0; box-shadow:none; } .consulta-setor-card { break-inside:avoid; box-shadow:none; } .consulta-endereco { margin-top:20px; } }
+</style>
