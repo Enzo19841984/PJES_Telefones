@@ -87,5 +87,3 @@ const CONFIG = {
 function teste() {
   Logger.log("OK");
 }
-
-// Repository indexing update
