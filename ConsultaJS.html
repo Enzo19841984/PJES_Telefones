@@ -1,0 +1,179 @@
+<script>
+(function() {
+  const MAPA_DRIVE_ID = "1vDH3BCV4hURwHxImjvRa3nrhMJ7KdGpR";
+  const estadoConsulta = { dados: [], microrregiao: "", comarca: "" };
+
+  function normalizar(v) {
+    return String(v == null ? "" : v).normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+  }
+
+  function campo(obj, nomes) {
+    const chaves = Object.keys(obj || {});
+    for (const nome of nomes) {
+      const chave = chaves.find(k => normalizar(k).replace(/[^a-z0-9]/g, "") === normalizar(nome).replace(/[^a-z0-9]/g, ""));
+      if (chave != null && obj[chave] != null && String(obj[chave]).trim() !== "") return obj[chave];
+    }
+    return "";
+  }
+
+  function escapar(v) {
+    return String(v == null ? "" : v).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+  }
+
+  function formatarTelefone(v) {
+    const d = String(v || "").replace(/\D/g, "");
+    if (d.length === 11 && d.startsWith("0")) return d.slice(0, 2) + " " + d.slice(2);
+    if (d.length === 10 || d.length === 11) return "(" + d.slice(0,2) + ") " + d.slice(2,6) + "-" + d.slice(6);
+    return String(v || "");
+  }
+
+  function whatsappHref(v) {
+    let d = String(v || "").replace(/\D/g, "");
+    if (d.length === 11) d = "55" + d;
+    if (d.length !== 13 || d.slice(0,2) !== "55") return "";
+    return "https://wa.me/" + d;
+  }
+
+  function formatarWhatsApp(v) {
+    const d = String(v || "").replace(/\D/g, "");
+    const nacional = d.length === 13 && d.startsWith("55") ? d.slice(2) : d;
+    if (nacional.length === 11) return "(" + nacional.slice(0,2) + ") " + nacional.slice(2,7) + "-" + nacional.slice(7);
+    return String(v || "");
+  }
+
+  function valoresUnicos(valores) {
+    const vistos = new Set();
+    return valores.filter(v => {
+      const chave = normalizar(v);
+      if (!chave || vistos.has(chave)) return false;
+      vistos.add(chave);
+      return true;
+    });
+  }
+
+  function obterDados(resposta) {
+    return resposta && resposta.sucesso === true && Array.isArray(resposta.dados) ? resposta.dados : [];
+  }
+
+  function iniciarConsultaTelefones() {
+    const select = document.getElementById("filtro-microrregiao-consulta");
+    if (!select || select.dataset.carregado === "1") return;
+    if (!window.API || typeof API.listarTelefones !== "function") {
+      mostrarToast("Serviço de consulta indisponível.", "error");
+      return;
+    }
+    select.dataset.carregado = "1";
+    API.listarTelefones(function(resposta) {
+      estadoConsulta.dados = obterDados(resposta);
+      preencherMicrorregioes();
+      mostrarMapa();
+    }, function(erro) {
+      select.dataset.carregado = "";
+      mostrarToast(erro && erro.message ? erro.message : "Não foi possível carregar os telefones.", "error");
+    });
+  }
+
+  function preencherMicrorregioes() {
+    const select = document.getElementById("filtro-microrregiao-consulta");
+    if (!select) return;
+    select.textContent = "";
+    const primeira = document.createElement("option");
+    primeira.value = "";
+    primeira.textContent = "Selecione uma microrregião";
+    select.appendChild(primeira);
+    const regioes = new Map();
+    estadoConsulta.dados.forEach(item => {
+      const valor = campo(item, ["Microrregiao", "Microrregião"]);
+      if (normalizar(valor) && !regioes.has(normalizar(valor))) regioes.set(normalizar(valor), String(valor).trim());
+    });
+    Array.from(regioes.values()).sort((a,b) => a.localeCompare(b,"pt-BR")).forEach(valor => {
+      const option = document.createElement("option"); option.value = valor; option.textContent = valor; select.appendChild(option);
+    });
+  }
+
+  function selecionarMicrorregiaoConsulta() {
+    estadoConsulta.microrregiao = document.getElementById("filtro-microrregiao-consulta")?.value || "";
+    estadoConsulta.comarca = "";
+    document.getElementById("campo-pesquisa-consulta").value = "";
+    renderizarComarcas();
+    mostrarMapa();
+  }
+
+  function filtrarComarcasConsulta() { renderizarComarcas(); }
+
+  function renderizarComarcas() {
+    const lista = document.getElementById("consulta-lista");
+    if (!lista) return;
+    if (!estadoConsulta.microrregiao) {
+      lista.innerHTML = '<div class="consulta-empty-state"><div class="consulta-empty-icon">🗺️</div><strong>Selecione uma microrregião</strong><span>A lista de comarcas será exibida aqui.</span></div>';
+      return;
+    }
+    const termo = normalizar(document.getElementById("campo-pesquisa-consulta")?.value || "");
+    const grupos = new Map();
+    estadoConsulta.dados.forEach(item => {
+      const micro = campo(item,["Microrregiao","Microrregião"]);
+      const comarca = campo(item,["Comarca"]);
+      if (normalizar(micro) !== normalizar(estadoConsulta.microrregiao) || !comarca) return;
+      if (termo && !normalizar(comarca).includes(termo)) return;
+      const chave = normalizar(comarca);
+      if (!grupos.has(chave)) grupos.set(chave,{nome:String(comarca).trim(), setores:new Set()});
+      const setor = campo(item,["Setor"]);
+      if (setor) grupos.get(chave).setores.add(normalizar(setor));
+    });
+    if (!grupos.size) {
+      lista.innerHTML = '<div class="consulta-empty-state"><strong>Nenhuma comarca encontrada</strong><span>Ajuste a pesquisa ou selecione outra microrregião.</span></div>';
+      return;
+    }
+    lista.innerHTML = Array.from(grupos.values()).sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR")).map(g => '<button type="button" class="consulta-comarca-item" onclick="selecionarComarcaConsulta(' + JSON.stringify(g.nome).replace(/</g,"\\u003c") + ')"><span>' + escapar(g.nome) + '</span><strong>' + g.setores.size + ' setor' + (g.setores.size === 1 ? '' : 'es') + '</strong></button>').join("");
+  }
+
+  function selecionarComarcaConsulta(nome) {
+    estadoConsulta.comarca = nome;
+    mostrarDetalhesComarca(nome);
+  }
+
+  function mostrarMapa() {
+    const painel = document.getElementById("consulta-detalhes");
+    if (!painel || estadoConsulta.comarca) return;
+    painel.innerHTML = '<div id="consulta-mapa-container" class="consulta-mapa-container"><img class="consulta-mapa-imagem" alt="Mapa das microrregiões e comarcas do Espírito Santo" src="https://drive.google.com/uc?export=view&id=' + MAPA_DRIVE_ID + '" onerror="this.style.display=\'none\';this.nextElementSibling.hidden=false;"><div class="consulta-mapa-falha" hidden><strong>Não foi possível carregar o mapa.</strong><span>Verifique se o arquivo do Google Drive está compartilhado como “Qualquer pessoa com o link — Visualizador”.</span></div></div>';
+  }
+
+  function mostrarDetalhesComarca(nome) {
+    const painel = document.getElementById("consulta-detalhes");
+    if (!painel) return;
+    const registros = estadoConsulta.dados.filter(item => normalizar(campo(item,["Comarca"])) === normalizar(nome));
+    const porSetor = new Map();
+    registros.forEach(item => {
+      const setor = String(campo(item,["Setor"]) || "Geral").trim();
+      const chave = normalizar(setor);
+      if (!porSetor.has(chave)) porSetor.set(chave,{nome:setor, registros:[]});
+      porSetor.get(chave).registros.push(item);
+    });
+    let html = '<div class="consulta-detalhes-header"><button type="button" class="btn btn-secondary" onclick="voltarParaMapaConsulta()">← Voltar ao mapa</button><div><h3>' + escapar(nome) + '</h3><span>Contatos por setor</span></div></div>';
+    html += '<div class="consulta-tabela-wrapper"><table class="consulta-tabela"><thead><tr><th>Setor</th><th>Telefone</th><th>Ramal</th><th>WhatsApp</th><th>E-mail</th></tr></thead><tbody>';
+    Array.from(porSetor.values()).sort((a,b)=>normalizar(a.nome)==="geral"?-1:normalizar(b.nome)==="geral"?1:a.nome.localeCompare(b.nome,"pt-BR")).forEach(grupo => {
+      const telefones = valoresUnicos(grupo.registros.map(r=>campo(r,["Telefone","Numero","Número"])));
+      const ramais = valoresUnicos(grupo.registros.map(r=>campo(r,["Ramal"])));
+      const whats = valoresUnicos(grupo.registros.map(r=>campo(r,["WhatsApp","Whatsapp","WHATSAPP"])));
+      const emails = valoresUnicos(grupo.registros.map(r=>campo(r,["E-mail","Email","E_mail"])))
+      const linhas = Math.max(1, telefones.length, ramais.length, whats.length, emails.length);
+      for(let i=0;i<linhas;i++) {
+        const w = whats[i] || ""; const href = whatsappHref(w);
+        html += '<tr>' + (i===0?'<td rowspan="'+linhas+'">'+escapar(grupo.nome)+'</td>':'') + '<td>'+escapar(formatarTelefone(telefones[i]||""))+'</td><td>'+escapar(ramais[i]||"")+'</td><td>'+(href?'<a class="consulta-whatsapp" target="_blank" rel="noopener noreferrer" href="'+href+'">'+escapar(formatarWhatsApp(w))+'</a>':escapar(formatarWhatsApp(w)))+'</td><td>'+ (emails[i]?'<a href="mailto:'+encodeURIComponent(emails[i])+'">'+escapar(emails[i])+'</a>':'') + '</td></tr>';
+      }
+    });
+    html += '</tbody></table></div>';
+    const endereco = registros.map(r=>campo(r,["Endereco","Endereço"])).find(Boolean) || "";
+    if(endereco) html += '<div class="consulta-endereco"><strong>Endereço</strong><span>'+escapar(endereco)+'</span></div>';
+    painel.innerHTML = html;
+  }
+
+  function voltarParaMapaConsulta() { estadoConsulta.comarca=""; mostrarMapa(); }
+
+  window.iniciarConsultaTelefones = iniciarConsultaTelefones;
+  window.selecionarMicrorregiaoConsulta = selecionarMicrorregiaoConsulta;
+  window.filtrarComarcasConsulta = filtrarComarcasConsulta;
+  window.selecionarComarcaConsulta = selecionarComarcaConsulta;
+  window.voltarParaMapaConsulta = voltarParaMapaConsulta;
+})();
+</script>
