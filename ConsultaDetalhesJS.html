@@ -1,0 +1,99 @@
+<script>
+/**
+ * Ajustes da visualização pública dos contatos.
+ *
+ * Regras:
+ * - A tabela possui somente Telefone, Ramal e WhatsApp.
+ * - Contatos de tipos diferentes ocupam a mesma linha quando possível.
+ * - Múltiplos contatos do mesmo tipo ocupam linhas adicionais.
+ * - O setor possui um único e-mail: ele aparece acima do endereço, fora da tabela.
+ */
+function renderizarDetalhes(comarca, setor, telefones) {
+  const container = document.getElementById("consulta-detalhes");
+  if (!container) return;
+
+  if (!Array.isArray(telefones) || !telefones.length) {
+    container.innerHTML = '<div class="panel" style="height:100%; box-sizing:border-box;"><p>Nenhum contato disponível.</p></div>';
+    return;
+  }
+
+  const primeiroComEndereco = telefones.find(t => campoTelefone(t, ["endereco", "ENDERECO", "Endereço"]));
+  const endereco = campoTelefone(primeiroComEndereco || telefones[0], ["endereco", "ENDERECO", "Endereço"]);
+
+  // O e-mail é único por setor. Pegamos a primeira ocorrência preenchida.
+  let email = "";
+  for (const t of telefones) {
+    const valor = String(campoTelefone(t, ["email", "EMAIL", "e-mail", "E-MAIL"]) || "").trim();
+    if (valor) {
+      email = valor;
+      break;
+    }
+  }
+
+  // Cada coluna recebe os contatos daquele tipo na ordem original da aba TELEFONES.
+  const contatos = {
+    telefone: [],
+    ramal: [],
+    whatsapp: []
+  };
+
+  telefones.forEach(t => {
+    const numero = String(campoTelefone(t, ["numero", "NUMERO", "telefone", "TELEFONE"]) || "").trim();
+    const ramal = String(campoTelefone(t, ["ramal", "RAMAL"]) || "").trim();
+    const whatsapp = String(campoTelefone(t, ["whatsapp", "WHATSAPP"]) || "").trim();
+
+    if (numero) contatos.telefone.push(numero);
+    if (ramal) contatos.ramal.push(ramal);
+    if (whatsapp) contatos.whatsapp.push(whatsapp);
+  });
+
+  const quantidadeLinhas = Math.max(
+    contatos.telefone.length,
+    contatos.ramal.length,
+    contatos.whatsapp.length,
+    1
+  );
+
+  let html = '<div class="panel" style="height:100%; box-sizing:border-box; overflow:auto;">';
+  html += '<div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start; margin-bottom:14px;">';
+  html += '<div><h3 style="margin:0 0 4px;">' + escaparConsulta(comarca) + '</h3><h4 style="margin:0; color:#475569;">' + escaparConsulta(setor) + '</h4></div>';
+  html += '<button type="button" class="btn btn-secondary" onclick="mostrarMapaConsulta()">Voltar ao mapa</button>';
+  html += '</div>';
+
+  html += '<div style="overflow-x:auto;"><table class="data-table">';
+  html += '<thead><tr><th>Telefone</th><th>Ramal</th><th>WhatsApp</th></tr></thead><tbody>';
+
+  for (let i = 0; i < quantidadeLinhas; i++) {
+    const numero = contatos.telefone[i] || "";
+    const ramal = contatos.ramal[i] || "";
+    const whatsapp = contatos.whatsapp[i] || "";
+
+    html += '<tr>';
+    html += '<td>' + (numero ? escaparConsulta(formatarTelefoneConsulta(numero)) : '-') + '</td>';
+    html += '<td>' + (ramal ? escaparConsulta(ramal) : '-') + '</td>';
+
+    if (whatsapp) {
+      const textoWhatsapp = formatarWhatsappConsulta(whatsapp);
+      const linkWhatsapp = linkWhatsappConsulta(whatsapp);
+      html += '<td><a href="' + linkWhatsapp + '" target="_blank" rel="noopener noreferrer" style="color:#15803d; font-weight:600; text-decoration:none;">' + escaparConsulta(textoWhatsapp) + '</a></td>';
+    } else {
+      html += '<td>-</td>';
+    }
+
+    html += '</tr>';
+  }
+
+  html += '</tbody></table></div>';
+
+  if (email) {
+    html += '<div style="margin-top:18px; padding-top:2px;"><strong>E-mail:</strong> <a href="mailto:' + encodeURIComponent(email) + '" style="color:#2563eb;">' + escaparConsulta(email) + '</a></div>';
+  }
+
+  if (endereco) {
+    html += '<div style="margin-top:12px;"><strong>Endereço:</strong> ' + escaparConsulta(endereco) + '</div>';
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+</script>
