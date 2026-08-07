@@ -216,3 +216,5 @@ function obterOuCadastrarUsuario(email) {
     return { erro: "PLANILHA", mensagem: erro.message || String(erro), perfil: perfilConsulta };
   }
 }
+
+// Repository indexing update
