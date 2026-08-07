@@ -5,32 +5,47 @@ Arquivo: ConsultarTelefones.html
 ==========================================================
 -->
 
-<div class="telefones-container">
-  <div class="page-header">
+<div class="telefones-container consulta-telefones-page">
+  <div class="page-header consulta-page-header">
     <div>
-      <h2>Telefones</h2>
-      <p>Selecione uma comarca e um setor para ver os contatos</p>
+      <h2>Consulta de Telefones</h2>
+      <p>Escolha uma microrregião e uma comarca para consultar os contatos.</p>
     </div>
-    <button class="btn btn-secondary" onclick="window.print()">🖨️ Imprimir / PDF</button>
+    <button class="btn btn-secondary" type="button" onclick="window.print()">🖨️ Imprimir / PDF</button>
   </div>
 
-  <div class="search-panel">
-    <div class="search-box">
+  <div class="search-panel consulta-toolbar">
+    <div class="search-box" style="position:relative; flex:1;">
       <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#94a3b8;">🔍</span>
-      <input id="campo-pesquisa-consulta" type="search" placeholder="Filtrar setores..." oninput="filtrarSetoresConsulta()">
+      <input id="campo-pesquisa-consulta" type="search" placeholder="Pesquisar comarca..." oninput="filtrarComarcasConsulta()" style="width:100%; padding-left:38px;">
+    </div>
+
+    <div class="consulta-filtro-microrregiao">
+      <label for="filtro-microrregiao-consulta">Microrregião</label>
+      <select id="filtro-microrregiao-consulta" onchange="selecionarMicrorregiaoConsulta()">
+        <option value="">Selecione uma microrregião</option>
+      </select>
     </div>
   </div>
 
-  <div class="consulta-layout" style="display:flex; gap:20px; flex-wrap:wrap;">
-    <div class="consulta-lista" id="consulta-lista" style="flex:1; min-width:250px; max-width:350px; overflow-y:auto; max-height:70vh;">
-      <!-- preenchido dinamicamente -->
+  <div class="consulta-layout consulta-layout-mapa">
+    <div class="consulta-lista painel-consulta-lista" id="consulta-lista">
+      <div class="consulta-empty-state">
+        <div class="consulta-empty-icon">🗺️</div>
+        <strong>Selecione uma microrregião</strong>
+        <span>A lista de comarcas será exibida aqui.</span>
+      </div>
     </div>
-    <div class="consulta-detalhes" id="consulta-detalhes" style="flex:2; min-width:300px;">
-      <div class="panel">
-        <p style="color:#64748b; text-align:center;">Selecione um setor para ver os detalhes.</p>
+
+    <div class="consulta-detalhes painel-consulta-mapa" id="consulta-detalhes">
+      <div id="consulta-mapa-container" class="consulta-mapa-container" aria-label="Mapa do Espírito Santo">
+        <div class="consulta-mapa-placeholder">
+          <div class="consulta-map-icon">🗺️</div>
+          <strong>Mapa do Espírito Santo</strong>
+          <span>O mapa das microrregiões e comarcas aparecerá aqui.</span>
+          <small>Depois, coloque a imagem do mapa no projeto como <code>mapa-espirito-santo.png</code>.</small>
+        </div>
       </div>
     </div>
   </div>
 </div>
-
-// Repository indexing update
