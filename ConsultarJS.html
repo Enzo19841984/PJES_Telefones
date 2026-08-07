@@ -132,4 +132,84 @@ function renderizarResumoDashboard(container, dados, mensagemVazia) {
     container.appendChild(linha);
   });
 }
+
+/*
+ * A lista pública deve respeitar rigorosamente a ordem física da aba
+ * TELEFONES. Não usamos ordem alfabética aqui: a primeira ocorrência
+ * de cada comarca e de cada setor na resposta da API define sua posição.
+ */
+function aplicarOrdemTabelaTelefones() {
+  if (!Array.isArray(window.todosTelefones) || !window.todosTelefones.length) {
+    return false;
+  }
+
+  if (typeof campoTelefone !== "function" ||
+      typeof setoresPorComarca === "undefined" ||
+      typeof comarcasPorMicrorregiao === "undefined") {
+    return false;
+  }
+
+  const ordemComarcas = [];
+  const vistosComarcas = new Set();
+  const ordemSetores = {};
+  const vistosSetores = {};
+
+  window.todosTelefones.forEach(item => {
+    const comarca = String(campoTelefone(item, ["comarca", "COMARCA", "Comarca"]) || "Sem comarca").trim();
+    const setor = String(campoTelefone(item, ["setor", "SETOR", "Setor"]) || "Sem setor").trim();
+
+    if (!vistosComarcas.has(comarca)) {
+      vistosComarcas.add(comarca);
+      ordemComarcas.push(comarca);
+    }
+
+    if (!ordemSetores[comarca]) {
+      ordemSetores[comarca] = [];
+      vistosSetores[comarca] = new Set();
+    }
+
+    if (!vistosSetores[comarca].has(setor)) {
+      vistosSetores[comarca].add(setor);
+      ordemSetores[comarca].push(setor);
+    }
+  });
+
+  Object.keys(ordemSetores).forEach(comarca => {
+    if (Object.prototype.hasOwnProperty.call(setoresPorComarca, comarca)) {
+      setoresPorComarca[comarca] = ordemSetores[comarca].slice();
+    }
+  });
+
+  Object.keys(comarcasPorMicrorregiao).forEach(micro => {
+    const existentes = new Set(comarcasPorMicrorregiao[micro] || []);
+    comarcasPorMicrorregiao[micro] = ordemComarcas.filter(comarca => existentes.has(comarca));
+  });
+
+  return true;
+}
+
+/*
+ * DashboardJS é carregado depois deste arquivo e recebe os dados da API
+ * de forma assíncrona. Por isso esperamos os dados chegarem e só então
+ * aplicamos a ordem da aba TELEFONES, sem alterar a ordem dos registros
+ * de contatos dentro de cada setor.
+ */
+(function aguardarOrdemTabelaTelefones(tentativa) {
+  const numeroTentativa = Number(tentativa || 0);
+  const aplicar = aplicarOrdemTabelaTelefones();
+
+  if (aplicar) {
+    if (typeof microrregiaoSelecionada !== "undefined" && microrregiaoSelecionada &&
+        typeof renderizarComarcas === "function") {
+      renderizarComarcas();
+    }
+    return;
+  }
+
+  if (numeroTentativa < 30) {
+    setTimeout(function () {
+      aguardarOrdemTabelaTelefones(numeroTentativa + 1);
+    }, 150);
+  }
+})(0);
 </script>
