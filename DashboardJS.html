@@ -6,131 +6,246 @@
  * ==========================================================
  */
 
-// Dados globais
 let todosTelefones = [];
-let setoresPorComarca = {};   // { comarca: [setor1, setor2, ...] }
-let telefonesPorSetor = {};   // { "comarca||setor": [obj, obj] }
+let setoresPorComarca = {};
+let telefonesPorSetor = {};
+let microrregioesConsulta = {};
+let microrregiaoConsultaAtual = "";
 
-// Inicialização
+function escaparConsulta(valor) {
+  return String(valor == null ? "" : valor)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function valorConsulta(obj, ...nomes) {
+  if (!obj) return "";
+  const chaves = Object.keys(obj);
+  for (const nome of nomes) {
+    if (Object.prototype.hasOwnProperty.call(obj, nome)) return obj[nome];
+    const alvo = String(nome).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+    const chave = chaves.find(k => String(k).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]/g, "").toUpperCase() === alvo);
+    if (chave !== undefined) return obj[chave];
+  }
+  return "";
+}
+
+function normalizarConsulta(valor) {
+  return String(valor == null ? "" : valor)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
 function iniciarConsultaTelefones() {
-  if (typeof API === 'undefined') {
+  if (typeof API === "undefined") {
     setTimeout(iniciarConsultaTelefones, 200);
     return;
   }
+
   API.listarTelefones(function(resp) {
     if (resp && resp.sucesso) {
-      todosTelefones = resp.dados || [];
+      todosTelefones = Array.isArray(resp.dados) ? resp.dados : [];
       processarDados();
+      preencherMicrorregioesConsulta();
       renderizarComarcas();
     } else {
-      document.getElementById('consulta-lista').innerHTML = '<p style="color:red;">Erro ao carregar telefones.</p>';
+      const lista = document.getElementById("consulta-lista");
+      if (lista) lista.innerHTML = '<div class="consulta-error-state">Erro ao carregar os telefones.</div>';
     }
   }, function() {
-    document.getElementById('consulta-lista').innerHTML = '<p style="color:red;">Falha na comunicação.</p>';
+    const lista = document.getElementById("consulta-lista");
+    if (lista) lista.innerHTML = '<div class="consulta-error-state">Falha na comunicação com a base de dados.</div>';
   });
 }
 
 function processarDados() {
   setoresPorComarca = {};
   telefonesPorSetor = {};
+  microrregioesConsulta = {};
+
   todosTelefones.forEach(tel => {
-    const comarca = tel.comarca || tel.COMARCA || 'Sem comarca';
-    const setor = tel.setor || tel.SETOR || 'Sem setor';
-    if (!setoresPorComarca[comarca]) setoresPorComarca[comarca] = new Set();
-    setoresPorComarca[comarca].add(setor);
-    const chave = comarca + '||' + setor;
-    if (!telefonesPorSetor[chave]) telefonesPorSetor[chave] = [];
-    telefonesPorSetor[chave].push(tel);
+    const comarca = String(valorConsulta(tel, "comarca", "Comarca") || "Sem comarca").trim();
+    const setor = String(valorConsulta(tel, "setor", "Setor") || "Sem setor").trim();
+    const micro = String(valorConsulta(tel, "microrregiao", "Microrregiao", "microrregião") || "Sem microrregião").trim();
+    const chaveComarca = comarca;
+    const chaveSetor = comarca + "||" + setor;
+
+    if (!setoresPorComarca[chaveComarca]) setoresPorComarca[chaveComarca] = new Set();
+    setoresPorComarca[chaveComarca].add(setor);
+    if (!telefonesPorSetor[chaveSetor]) telefonesPorSetor[chaveSetor] = [];
+    telefonesPorSetor[chaveSetor].push(tel);
+
+    if (!microrregioesConsulta[micro]) microrregioesConsulta[micro] = new Set();
+    microrregioesConsulta[micro].add(comarca);
   });
-  // Converte Sets para arrays ordenados
-  for (let c in setoresPorComarca) {
-    setoresPorComarca[c] = Array.from(setoresPorComarca[c]);
-  }
+
+  Object.keys(setoresPorComarca).forEach(c => {
+    setoresPorComarca[c] = Array.from(setoresPorComarca[c]).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  });
+}
+
+function preencherMicrorregioesConsulta() {
+  const select = document.getElementById("filtro-microrregiao-consulta");
+  if (!select) return;
+  select.innerHTML = '<option value="">Selecione uma microrregião</option>';
+
+  Object.keys(microrregioesConsulta)
+    .filter(m => normalizarConsulta(m) !== "sem microrregiao")
+    .sort((a, b) => a.localeCompare(b, "pt-BR"))
+    .forEach(micro => {
+      const option = document.createElement("option");
+      option.value = micro;
+      option.textContent = micro;
+      select.appendChild(option);
+    });
+}
+
+function selecionarMicrorregiaoConsulta() {
+  const select = document.getElementById("filtro-microrregiao-consulta");
+  microrregiaoConsultaAtual = select ? select.value : "";
+  const campo = document.getElementById("campo-pesquisa-consulta");
+  if (campo) campo.value = "";
+  renderizarComarcas();
+  mostrarMapaConsulta();
+}
+
+function obterComarcasMicrorregiao() {
+  if (!microrregiaoConsultaAtual) return [];
+  const conjunto = microrregioesConsulta[microrregiaoConsultaAtual];
+  return conjunto ? Array.from(conjunto).sort((a, b) => a.localeCompare(b, "pt-BR")) : [];
 }
 
 function renderizarComarcas() {
-  const container = document.getElementById('consulta-lista');
-  const comarcas = Object.keys(setoresPorComarca);
-  let html = '<div class="list-group">';
+  const container = document.getElementById("consulta-lista");
+  if (!container) return;
+
+  if (!microrregiaoConsultaAtual) {
+    container.innerHTML = '<div class="consulta-empty-state"><div class="consulta-empty-icon">🗺️</div><strong>Selecione uma microrregião</strong><span>A lista de comarcas será exibida aqui.</span></div>';
+    return;
+  }
+
+  const termo = normalizarConsulta((document.getElementById("campo-pesquisa-consulta") || {}).value);
+  const comarcas = obterComarcasMicrorregiao().filter(c => !termo || normalizarConsulta(c).includes(termo));
+
+  if (!comarcas.length) {
+    container.innerHTML = '<div class="consulta-empty-state"><strong>Nenhuma comarca encontrada</strong><span>Tente outro termo de pesquisa.</span></div>';
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
   comarcas.forEach(comarca => {
-    const idSeguro = comarca.replace(/[^a-zA-Z0-9]/g, '_');
-    html += `<div class="comarca-item" onclick="toggleComarca('${idSeguro}')" style="cursor:pointer; padding:10px; background:#f8fafc; margin-bottom:4px; border-radius:6px;">
-      <span class="comarca-nome" style="font-weight:600;">${comarca}</span>
-      <span class="setor-count" style="float:right; color:#64748b;">${setoresPorComarca[comarca].length} setores</span>
-    </div>`;
-    html += `<div class="setores-list hidden" id="setores-${idSeguro}" style="margin-left:15px;">`;
-    setoresPorComarca[comarca].forEach(setor => {
-      const chave = comarca + '||' + setor;
-      html += `<div class="setor-item" onclick="selecionarSetor('${idSeguro}', '${setor.replace(/'/g, "\\'")}', '${chave.replace(/'/g, "\\'")}')" style="cursor:pointer; padding:6px; border-bottom:1px solid #e2e8f0;">${setor}</div>`;
-    });
-    html += `</div>`;
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "comarca-item";
+    item.innerHTML = '<span class="comarca-nome">' + escaparConsulta(comarca) + '</span><span class="setor-count">' + setoresPorComarca[comarca].length + ' setores</span>';
+    item.addEventListener("click", () => selecionarComarcaConsulta(comarca));
+    fragment.appendChild(item);
   });
+  container.innerHTML = "";
+  container.appendChild(fragment);
+}
+
+function filtrarComarcasConsulta() {
+  renderizarComarcas();
+}
+
+function filtrarSetoresConsulta() {
+  filtrarComarcasConsulta();
+}
+
+function selecionarComarcaConsulta(comarca) {
+  document.querySelectorAll(".comarca-item").forEach(el => el.classList.remove("active"));
+  const item = Array.from(document.querySelectorAll(".comarca-item")).find(el => normalizarConsulta(el.textContent).startsWith(normalizarConsulta(comarca)));
+  if (item) item.classList.add("active");
+
+  renderizarSetoresDaComarca(comarca);
+}
+
+function renderizarSetoresDaComarca(comarca) {
+  const container = document.getElementById("consulta-detalhes");
+  if (!container) return;
+
+  const setores = setoresPorComarca[comarca] || [];
+  let html = '<div class="consulta-detalhes-card">' +
+    '<div class="consulta-detalhes-header"><div><span class="consulta-breadcrumb">' + escaparConsulta(microrregiaoConsultaAtual) + '</span><h3>' + escaparConsulta(comarca) + '</h3><p>' + setores.length + ' setores</p></div><button type="button" class="btn btn-secondary btn-voltar-mapa" onclick="mostrarMapaConsulta()">← Voltar ao mapa</button></div>';
+
+  if (!setores.length) {
+    html += '<div class="consulta-empty-state"><strong>Nenhum setor cadastrado.</strong></div></div>';
+    container.innerHTML = html;
+    return;
+  }
+
+  setores.forEach(setor => {
+    const chave = comarca + "||" + setor;
+    const contatos = telefonesPorSetor[chave] || [];
+    html += renderizarTabelaSetor(comarca, setor, contatos);
+  });
+
   html += '</div>';
   container.innerHTML = html;
 }
 
-function toggleComarca(idSeguro) {
-  const el = document.getElementById('setores-' + idSeguro);
-  if (el) el.classList.toggle('hidden');
+function formatarWhatsappConsulta(valor) {
+  const digits = String(valor == null ? "" : valor).replace(/\D/g, "");
+  let local = digits;
+  if (local.startsWith("55")) local = local.substring(2);
+  if (local.length === 11) return "(" + local.substring(0, 2) + ") " + local.substring(2, 7) + "-" + local.substring(7);
+  if (local.length === 10) return "(" + local.substring(0, 2) + ") " + local.substring(2, 6) + "-" + local.substring(6);
+  return String(valor || "-");
 }
 
-function selecionarSetor(idSeguro, setor, chave) {
-  const comarca = Object.keys(setoresPorComarca).find(c => c.replace(/[^a-zA-Z0-9]/g, '_') === idSeguro) || '';
-  const telefones = telefonesPorSetor[decodeURIComponent(chave)] || [];
-  renderizarDetalhes(comarca, setor, telefones);
-  // Destacar setor selecionado
-  document.querySelectorAll('.setor-item').forEach(el => el.style.background = '');
-  event.target.style.background = '#e2e8f0';
+function linkWhatsappConsulta(valor) {
+  const digits = String(valor == null ? "" : valor).replace(/\D/g, "");
+  if (!digits) return "-";
+  const numero = digits.startsWith("55") ? digits : "55" + digits;
+  return '<a class="consulta-whatsapp-link" href="https://wa.me/' + numero + '" target="_blank" rel="noopener noreferrer" title="Abrir no WhatsApp">💬 ' + escaparConsulta(formatarWhatsappConsulta(valor)) + '</a>';
 }
 
-function renderizarDetalhes(comarca, setor, telefones) {
-  const container = document.getElementById('consulta-detalhes');
-  if (!telefones.length) {
-    container.innerHTML = '<div class="panel"><p>Nenhum contato disponível.</p></div>';
-    return;
-  }
-  // Agrupa para exibir de forma organizada
-  const endereco = telefones[0].endereco || telefones[0].ENDERECO || '';
-  let html = `<div class="panel">
-    <h3>${comarca}</h3>
-    <h4>${setor}</h4>
-    <table class="data-table">
-      <thead><tr><th>Tipo</th><th>Contato</th><th>Ramal</th><th>WhatsApp</th><th>E‑mail</th></tr></thead>
-      <tbody>`;
-  telefones.forEach(t => {
-    const tipo = t.tipo || t.TIPO || '-';
-    const numero = t.numero || t.NUMERO || '-';
-    const ramal = t.ramal || t.RAMAL || '-';
-    const whatsapp = t.whatsapp || t.WHATSAPP || '-';
-    const email = t.email || t.EMAIL || '-';
-    html += `<tr>
-      <td>${tipo}</td>
-      <td>${numero}</td>
-      <td>${ramal}</td>
-      <td>${whatsapp}</td>
-      <td>${email}</td>
-    </tr>`;
+function juntarValores(contatos, ...campos) {
+  const valores = [];
+  contatos.forEach(c => {
+    const valor = String(valorConsulta(c, ...campos) || "").trim();
+    if (valor && !valores.some(v => normalizarConsulta(v) === normalizarConsulta(valor))) valores.push(valor);
   });
-  html += `</tbody></table>`;
-  if (endereco) {
-    html += `<p style="margin-top:15px;"><strong>Endereço:</strong> ${endereco}</p>`;
+  return valores;
+}
+
+function renderizarTabelaSetor(comarca, setor, contatos) {
+  const telefones = juntarValores(contatos, "telefone", "numero", "Telefone", "Numero");
+  const ramais = juntarValores(contatos, "ramal", "Ramal");
+  const whatsapps = juntarValores(contatos, "whatsapp", "Whatsapp", "WhatsApp", "WHATSAPP");
+  const emails = juntarValores(contatos, "email", "e-mail", "E-mail", "EMAIL");
+  const enderecos = juntarValores(contatos, "endereco", "Endereco", "ENDERECO");
+
+  const linhas = Math.max(telefones.length, ramais.length, whatsapps.length, emails.length, 1);
+  let html = '<section class="consulta-setor-card"><div class="consulta-setor-title"><h4>' + escaparConsulta(setor) + '</h4></div><div class="consulta-table-wrap"><table class="data-table consulta-contatos-table"><thead><tr><th>Telefone</th><th>Ramal</th><th>WhatsApp</th><th>E-mail</th></tr></thead><tbody>';
+  for (let i = 0; i < linhas; i++) {
+    const tel = telefones[i] || "-";
+    const ramal = ramais[i] || "-";
+    const whatsapp = whatsapps[i] || "";
+    const email = emails[i] || "-";
+    html += '<tr><td>' + escaparConsulta(tel) + '</td><td>' + escaparConsulta(ramal) + '</td><td>' + (whatsapp ? linkWhatsappConsulta(whatsapp) : '-') + '</td><td>' + escaparConsulta(email) + '</td></tr>';
+  }
+  html += '</tbody></table></div>';
+  if (enderecos.length) {
+    html += '<div class="consulta-endereco"><strong>Endereço:</strong> ' + escaparConsulta(enderecos.join(" • ")) + '</div>';
   }
-  html += `</div>`;
-  container.innerHTML = html;
+  html += '</section>';
+  return html;
 }
 
-function filtrarSetoresConsulta() {
-  const termo = document.getElementById('campo-pesquisa-consulta').value.toLowerCase();
-  document.querySelectorAll('.comarca-item, .setor-item').forEach(item => {
-    item.style.display = item.textContent.toLowerCase().includes(termo) ? '' : 'none';
-  });
-}
-
-// Disparar ao exibir a view
-document.addEventListener('DOMContentLoaded', function() {
+function mostrarMapaConsulta() {
+  const container = document.getElementById("consulta-detalhes");
+  if (!container) return;
+  container.innerHTML = '<div id="consulta-mapa-container" class="consulta-mapa-container"><img class="consulta-mapa-imagem" src="mapa-espirito-santo.png" alt="Mapa do Espírito Santo com microrregiões e comarcas" onerror="this.style.display=\'none\'; this.nextElementSibling.style.display=\'flex\';"><div class="consulta-mapa-placeholder"><div class="consulta-map-icon">🗺️</div><strong>Mapa do Espírito Santo</strong><span>Adicione o arquivo <code>mapa-espirito-santo.png</code> ao projeto para exibir o mapa.</span></div></div>';
+}
+// Mantém a consulta disponível quando a view for aberta.
+document.addEventListener("DOMContentLoaded", function() {
   iniciarConsultaTelefones();
 });
-
 </script>
-
-// Repository indexing update
