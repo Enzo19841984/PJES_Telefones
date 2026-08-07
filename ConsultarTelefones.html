@@ -21,13 +21,40 @@ Arquivo: ConsultarTelefones.html
     </div>
   </div>
 
-  <div class="consulta-layout" style="display:flex; gap:20px; flex-wrap:wrap;">
+  <div class="consulta-layout" style="display:flex; gap:20px; flex-wrap:wrap; align-items:stretch;">
     <div class="consulta-lista" id="consulta-lista" style="flex:1; min-width:250px; max-width:350px; overflow-y:auto; max-height:70vh;">
       <!-- preenchido dinamicamente -->
     </div>
+
     <div class="consulta-detalhes" id="consulta-detalhes" style="flex:2; min-width:300px;">
-      <div class="panel">
-        <p style="color:#64748b; text-align:center;">Selecione um setor para ver os detalhes.</p>
+      <div class="panel" style="min-height:560px; display:flex; flex-direction:column;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:12px;">
+          <div>
+            <h3 style="margin:0 0 5px;">Mapa do Espírito Santo</h3>
+            <p style="margin:0; color:#64748b; font-size:13px;">Selecione uma comarca e um setor na lista para ver os detalhes.</p>
+          </div>
+          <a
+            href="https://www.educacaonamao.com.br/wp-content/uploads/2019/11/mapa-districao-regioes-espirito-santo-596x1024.jpg"
+            target="_blank"
+            rel="noopener noreferrer"
+            style="flex:0 0 auto; color:#2563eb; font-size:13px; font-weight:600; text-decoration:none;"
+          >
+            Abrir mapa
+          </a>
+        </div>
+
+        <div style="flex:1; min-height:480px; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:10px; background:#f8fafc;">
+          <img
+            src="https://www.educacaonamao.com.br/wp-content/uploads/2019/11/mapa-districao-regioes-espirito-santo-596x1024.jpg"
+            alt="Mapa das regiões e comarcas do Espírito Santo"
+            style="display:block; width:100%; height:100%; min-height:480px; object-fit:contain;"
+            onerror="this.style.display='none'; document.getElementById('consulta-mapa-erro').style.display='block';"
+          >
+          <div id="consulta-mapa-erro" style="display:none; padding:30px; text-align:center; color:#64748b;">
+            <p><strong>Não foi possível carregar o mapa.</strong></p>
+            <p>Use o botão “Abrir mapa” para visualizar a imagem em uma nova aba.</p>
+          </div>
+        </div>
       </div>
     </div>
   </div>
