@@ -139,7 +139,7 @@ function renderizarResumoDashboard(container, dados, mensagemVazia) {
  * de cada comarca e de cada setor na resposta da API define sua posição.
  */
 function aplicarOrdemTabelaTelefones() {
-  if (!Array.isArray(window.todosTelefones) || !window.todosTelefones.length) {
+  if (typeof todosTelefones === "undefined" || !Array.isArray(todosTelefones) || !todosTelefones.length) {
     return false;
   }
 
@@ -154,7 +154,7 @@ function aplicarOrdemTabelaTelefones() {
   const ordemSetores = {};
   const vistosSetores = {};
 
-  window.todosTelefones.forEach(item => {
+  todosTelefones.forEach(item => {
     const comarca = String(campoTelefone(item, ["comarca", "COMARCA", "Comarca"]) || "Sem comarca").trim();
     const setor = String(campoTelefone(item, ["setor", "SETOR", "Setor"]) || "Sem setor").trim();
 
