@@ -1,0 +1,73 @@
+<script>
+/**
+ * ==========================================================
+ * SISTEMA DE TELEFONES TJES
+ * Arquivo: RegistroAlteracoesJS.html
+ * ==========================================================
+ */
+
+function carregarRegistroAlteracoes() {
+  const container = document.getElementById('registro-alteracoes-container');
+  if (!container) return;
+  container.innerHTML = '<div class="panel"><p style="text-align:center;">Carregando histórico...</p></div>';
+
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (res.sucesso) {
+        renderizarHistoricoGeral(res.dados);
+      } else {
+        container.innerHTML = '<div class="panel"><p style="color:red;">Erro: ' + (res.erro || 'desconhecido') + '</p></div>';
+      }
+    })
+    .listarHistoricoGeral();
+}
+
+function renderizarHistoricoGeral(dados) {
+  const container = document.getElementById('registro-alteracoes-container');
+  if (!dados || dados.length === 0) {
+    container.innerHTML = '<div class="panel"><p>Nenhuma alteração registrada.</p></div>';
+    return;
+  }
+
+  let html = '<div class="panel">' +
+    '<div style="display:flex; justify-content:space-between; align-items:center;">' +
+      '<h2>Registro de Alterações</h2>' +
+      '<button class="btn btn-secondary" onclick="window.print()">🖨️ Imprimir / PDF</button>' +
+    '</div>' +
+    '<div class="table-panel" style="margin-top:15px;">' +
+      '<table class="data-table">' +
+        '<thead><tr>' +
+          '<th>Comarca</th>' +
+          '<th>Setor</th>' +
+          '<th>Data</th>' +
+          '<th>Ação</th>' +
+          '<th>Antes</th>' +
+          '<th>Depois</th>' +
+        '</tr></thead>' +
+        '<tbody>';
+
+  dados.forEach(item => {
+    html += '<tr>' +
+      '<td>' + escaparHtml(item.comarca || '-') + '</td>' +
+      '<td>' + escaparHtml(item.setor || '-') + '</td>' +
+      '<td>' + escaparHtml(item.data || '-') + '</td>' +
+      '<td>' + escaparHtml(item.acao || '-') + '</td>' +
+      '<td>' + escaparHtml(item.antes || '-') + '</td>' +
+      '<td>' + escaparHtml(item.depois || '-') + '</td>' +
+      '</tr>';
+  });
+
+  html += '</tbody></table></div></div>';
+  container.innerHTML = html;
+}
+
+// Função de escape simples (mantida do TableJS.html)
+function escaparHtml(valor) {
+  return String(valor === null || valor === undefined ? "" : valor)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+</script>

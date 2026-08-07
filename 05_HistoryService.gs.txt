@@ -1,0 +1,286 @@
+/**
+ * ==========================================================
+ * SISTEMA DE TELEFONES TJES
+ * Arquivo: 05_HistoryService.gs
+ * ==========================================================
+ */
+
+class HistoryService {
+  constructor() {
+    this.sheet =
+      this.obterAbaHistorico();
+
+    this.headers =
+      DB.headers(this.sheet);
+
+    this.map =
+      DB.map(this.sheet);
+  }
+
+  obterAbaHistorico() {
+    const ss =
+      DB.getSpreadsheet();
+
+    let sheet =
+      ss.getSheetByName(
+        CONFIG.SHEETS.HISTORICO
+      );
+
+    if (!sheet) {
+      sheet =
+        ss.insertSheet(
+          CONFIG.SHEETS.HISTORICO
+        );
+
+      sheet.appendRow([
+        "ID",
+        "TelefoneID",
+        "Usuario",
+        "Acao",
+        "Antes",
+        "Depois",
+        "Data"
+      ]);
+    }
+
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow([
+        "ID",
+        "TelefoneID",
+        "Usuario",
+        "Acao",
+        "Antes",
+        "Depois",
+        "Data"
+      ]);
+    }
+
+    return sheet;
+  }
+
+  getValorLinha(linha, ...nomes) {
+    for (const nome of nomes) {
+      const idx =
+        this.map[
+          normalizarChave(nome)
+        ];
+
+      if (
+        idx !== undefined &&
+        linha[idx - 1] !== undefined
+      ) {
+        return linha[idx - 1];
+      }
+    }
+
+    return "";
+  }
+
+  /**
+   * Registra alteração.
+   */
+  registrar(
+    telefoneId,
+    acao,
+    antes,
+    depois
+  ) {
+    let usuario =
+      "SISTEMA";
+
+    try {
+      const atual =
+        new AuthService()
+          .usuarioAtual();
+
+      if (
+        atual &&
+        atual.email
+      ) {
+        usuario =
+          atual.email;
+      } else {
+        const emailAtivo =
+          AuthService
+            .obterEmailAtivo();
+
+        if (emailAtivo) {
+          usuario =
+            emailAtivo;
+        }
+      }
+    } catch (erro) {
+      usuario =
+        "SISTEMA";
+    }
+
+    const registro = {
+      ID: Utilities.getUuid(),
+      TelefoneID: textoSeguro(
+        telefoneId
+      ),
+      Usuario: usuario,
+      Acao: textoSeguro(acao),
+      Antes: JSON.stringify(
+        antes || {}
+      ),
+      Depois: JSON.stringify(
+        depois || {}
+      ),
+      Data: new Date()
+    };
+
+    const linha =
+      this.headers.map(header => {
+        const chave =
+          normalizarChave(header);
+
+        switch (chave) {
+          case "ID":
+            return registro.ID;
+
+          case "TELEFONEID":
+            return registro.TelefoneID;
+
+          case "USUARIO":
+            return registro.Usuario;
+
+          case "ACAO":
+            return registro.Acao;
+
+          case "ANTES":
+            return registro.Antes;
+
+          case "DEPOIS":
+            return registro.Depois;
+
+          case "DATA":
+            return registro.Data;
+
+          default:
+            return "";
+        }
+      });
+
+    this.sheet
+      .getRange(
+        this.sheet.getLastRow() + 1,
+        1,
+        1,
+        linha.length
+      )
+      .setValues([linha]);
+
+    return registro.ID;
+  }
+
+  /**
+   * Lista histórico de um telefone.
+   */
+  listar(telefoneId) {
+    const idBusca =
+      textoSeguro(telefoneId);
+
+    if (!idBusca) {
+      return [];
+    }
+
+    const dados =
+      DB.read(this.sheet);
+
+    return dados
+      .filter(linha => {
+        return (
+          textoSeguro(
+            this.getValorLinha(
+              linha,
+              "TelefoneID"
+            )
+          ) === idBusca
+        );
+      })
+      .map(linha => {
+        return this.linhaParaObjeto(linha);
+      });
+  }
+
+  /**
+   * Lista todo o histórico.
+   */
+  listarTodos() {
+    return DB.read(this.sheet)
+      .map(linha => {
+        return this.linhaParaObjeto(linha);
+      });
+  }
+
+  linhaParaObjeto(linha) {
+    return {
+      id: this.getValorLinha(
+        linha,
+        "ID"
+      ),
+
+      telefoneId: this.getValorLinha(
+        linha,
+        "TelefoneID"
+      ),
+
+      usuario: this.getValorLinha(
+        linha,
+        "Usuario"
+      ),
+
+      acao: this.getValorLinha(
+        linha,
+        "Acao"
+      ),
+
+      antes: this.parseJSON(
+        this.getValorLinha(
+          linha,
+          "Antes"
+        )
+      ),
+
+      depois: this.parseJSON(
+        this.getValorLinha(
+          linha,
+          "Depois"
+        )
+      ),
+
+      data: this.getValorLinha(
+        linha,
+        "Data"
+      )
+    };
+  }
+
+  parseJSON(valor) {
+    if (
+      valor === null ||
+      valor === undefined ||
+      String(valor).trim() === ""
+    ) {
+      return {};
+    }
+
+    if (
+      typeof valor === "object"
+    ) {
+      return valor;
+    }
+
+    try {
+      const convertido =
+        JSON.parse(String(valor));
+
+      return convertido;
+    } catch (erro) {
+      return {
+        detalhes: String(valor)
+      };
+    }
+  }
+}

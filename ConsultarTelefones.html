@@ -1,0 +1,34 @@
+<!--
+==========================================================
+SISTEMA DE TELEFONES TJES
+Arquivo: ConsultarTelefones.html
+==========================================================
+-->
+
+<div class="telefones-container">
+  <div class="page-header">
+    <div>
+      <h2>Telefones</h2>
+      <p>Selecione uma comarca e um setor para ver os contatos</p>
+    </div>
+    <button class="btn btn-secondary" onclick="window.print()">🖨️ Imprimir / PDF</button>
+  </div>
+
+  <div class="search-panel">
+    <div class="search-box">
+      <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#94a3b8;">🔍</span>
+      <input id="campo-pesquisa-consulta" type="search" placeholder="Filtrar setores..." oninput="filtrarSetoresConsulta()">
+    </div>
+  </div>
+
+  <div class="consulta-layout" style="display:flex; gap:20px; flex-wrap:wrap;">
+    <div class="consulta-lista" id="consulta-lista" style="flex:1; min-width:250px; max-width:350px; overflow-y:auto; max-height:70vh;">
+      <!-- preenchido dinamicamente -->
+    </div>
+    <div class="consulta-detalhes" id="consulta-detalhes" style="flex:2; min-width:300px;">
+      <div class="panel">
+        <p style="color:#64748b; text-align:center;">Selecione um setor para ver os detalhes.</p>
+      </div>
+    </div>
+  </div>
+</div>

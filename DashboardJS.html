@@ -1,0 +1,134 @@
+<script>
+/**
+ * ==========================================================
+ * SISTEMA DE TELEFONES TJES
+ * Arquivo: DashboardJS.html
+ * ==========================================================
+ */
+
+// Dados globais
+let todosTelefones = [];
+let setoresPorComarca = {};   // { comarca: [setor1, setor2, ...] }
+let telefonesPorSetor = {};   // { "comarca||setor": [obj, obj] }
+
+// Inicialização
+function iniciarConsultaTelefones() {
+  if (typeof API === 'undefined') {
+    setTimeout(iniciarConsultaTelefones, 200);
+    return;
+  }
+  API.listarTelefones(function(resp) {
+    if (resp && resp.sucesso) {
+      todosTelefones = resp.dados || [];
+      processarDados();
+      renderizarComarcas();
+    } else {
+      document.getElementById('consulta-lista').innerHTML = '<p style="color:red;">Erro ao carregar telefones.</p>';
+    }
+  }, function() {
+    document.getElementById('consulta-lista').innerHTML = '<p style="color:red;">Falha na comunicação.</p>';
+  });
+}
+
+function processarDados() {
+  setoresPorComarca = {};
+  telefonesPorSetor = {};
+  todosTelefones.forEach(tel => {
+    const comarca = tel.comarca || tel.COMARCA || 'Sem comarca';
+    const setor = tel.setor || tel.SETOR || 'Sem setor';
+    if (!setoresPorComarca[comarca]) setoresPorComarca[comarca] = new Set();
+    setoresPorComarca[comarca].add(setor);
+    const chave = comarca + '||' + setor;
+    if (!telefonesPorSetor[chave]) telefonesPorSetor[chave] = [];
+    telefonesPorSetor[chave].push(tel);
+  });
+  // Converte Sets para arrays ordenados
+  for (let c in setoresPorComarca) {
+    setoresPorComarca[c] = Array.from(setoresPorComarca[c]);
+  }
+}
+
+function renderizarComarcas() {
+  const container = document.getElementById('consulta-lista');
+  const comarcas = Object.keys(setoresPorComarca);
+  let html = '<div class="list-group">';
+  comarcas.forEach(comarca => {
+    const idSeguro = comarca.replace(/[^a-zA-Z0-9]/g, '_');
+    html += `<div class="comarca-item" onclick="toggleComarca('${idSeguro}')" style="cursor:pointer; padding:10px; background:#f8fafc; margin-bottom:4px; border-radius:6px;">
+      <span class="comarca-nome" style="font-weight:600;">${comarca}</span>
+      <span class="setor-count" style="float:right; color:#64748b;">${setoresPorComarca[comarca].length} setores</span>
+    </div>`;
+    html += `<div class="setores-list hidden" id="setores-${idSeguro}" style="margin-left:15px;">`;
+    setoresPorComarca[comarca].forEach(setor => {
+      const chave = comarca + '||' + setor;
+      html += `<div class="setor-item" onclick="selecionarSetor('${idSeguro}', '${setor.replace(/'/g, "\\'")}', '${chave.replace(/'/g, "\\'")}')" style="cursor:pointer; padding:6px; border-bottom:1px solid #e2e8f0;">${setor}</div>`;
+    });
+    html += `</div>`;
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function toggleComarca(idSeguro) {
+  const el = document.getElementById('setores-' + idSeguro);
+  if (el) el.classList.toggle('hidden');
+}
+
+function selecionarSetor(idSeguro, setor, chave) {
+  const comarca = Object.keys(setoresPorComarca).find(c => c.replace(/[^a-zA-Z0-9]/g, '_') === idSeguro) || '';
+  const telefones = telefonesPorSetor[decodeURIComponent(chave)] || [];
+  renderizarDetalhes(comarca, setor, telefones);
+  // Destacar setor selecionado
+  document.querySelectorAll('.setor-item').forEach(el => el.style.background = '');
+  event.target.style.background = '#e2e8f0';
+}
+
+function renderizarDetalhes(comarca, setor, telefones) {
+  const container = document.getElementById('consulta-detalhes');
+  if (!telefones.length) {
+    container.innerHTML = '<div class="panel"><p>Nenhum contato disponível.</p></div>';
+    return;
+  }
+  // Agrupa para exibir de forma organizada
+  const endereco = telefones[0].endereco || telefones[0].ENDERECO || '';
+  let html = `<div class="panel">
+    <h3>${comarca}</h3>
+    <h4>${setor}</h4>
+    <table class="data-table">
+      <thead><tr><th>Tipo</th><th>Contato</th><th>Ramal</th><th>WhatsApp</th><th>E‑mail</th></tr></thead>
+      <tbody>`;
+  telefones.forEach(t => {
+    const tipo = t.tipo || t.TIPO || '-';
+    const numero = t.numero || t.NUMERO || '-';
+    const ramal = t.ramal || t.RAMAL || '-';
+    const whatsapp = t.whatsapp || t.WHATSAPP || '-';
+    const email = t.email || t.EMAIL || '-';
+    html += `<tr>
+      <td>${tipo}</td>
+      <td>${numero}</td>
+      <td>${ramal}</td>
+      <td>${whatsapp}</td>
+      <td>${email}</td>
+    </tr>`;
+  });
+  html += `</tbody></table>`;
+  if (endereco) {
+    html += `<p style="margin-top:15px;"><strong>Endereço:</strong> ${endereco}</p>`;
+  }
+  html += `</div>`;
+  container.innerHTML = html;
+}
+
+function filtrarSetoresConsulta() {
+  const termo = document.getElementById('campo-pesquisa-consulta').value.toLowerCase();
+  document.querySelectorAll('.comarca-item, .setor-item').forEach(item => {
+    item.style.display = item.textContent.toLowerCase().includes(termo) ? '' : 'none';
+  });
+}
+
+// Disparar ao exibir a view
+document.addEventListener('DOMContentLoaded', function() {
+  iniciarConsultaTelefones();
+});
+
+</script>
